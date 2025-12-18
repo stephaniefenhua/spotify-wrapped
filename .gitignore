@@ -1,0 +1,40 @@
+# Spotify streaming data files (personal data - do not commit)
+data/*.json
+
+# Generated database files (contain personal data)
+spotify_streaming_history.parquet
+spotify_streaming_history.csv
+spotify_streaming_history.db
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
