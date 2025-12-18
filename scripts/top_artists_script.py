@@ -1,16 +1,16 @@
 """
-Query top artists by year.
+Query top artists by year or all-time.
 """
 import pandas as pd
 import argparse
 from pathlib import Path
 
 
-def get_top_artists(year: int, top_n: int = 10):
-    """Get top N artists by total play time for a given year.
+def get_top_artists(year: int = None, top_n: int = 10):
+    """Get top N artists by total play time for a given year or all-time.
     
     Args:
-        year: The year to filter records by
+        year: The year to filter records by (None for all-time)
         top_n: Number of top artists to return (default: 10)
     
     Returns:
@@ -20,22 +20,26 @@ def get_top_artists(year: int, top_n: int = 10):
     db_path = Path(__file__).parent.parent / 'spotify_streaming_history.parquet'
     df = pd.read_parquet(db_path)
     
-    # Filter for specified year
-    df_year = df[df['ts'].dt.year == year]
-    
-    if len(df_year) == 0:
-        print(f"No records found for year {year}")
-        return pd.DataFrame()
+    # Filter for specified year if provided
+    if year is not None:
+        df_filtered = df[df['ts'].dt.year == year]
+        
+        if len(df_filtered) == 0:
+            print(f"No records found for year {year}")
+            return pd.DataFrame()
+    else:
+        df_filtered = df
     
     # Filter out records without artist names (episodes, audiobooks, etc.)
-    df_year_tracks = df_year[df_year['master_metadata_album_artist_name'].notna()]
+    df_tracks = df_filtered[df_filtered['master_metadata_album_artist_name'].notna()]
     
-    if len(df_year_tracks) == 0:
-        print(f"No track records found for year {year}")
+    if len(df_tracks) == 0:
+        time_period = f"year {year}" if year is not None else "all-time"
+        print(f"No track records found for {time_period}")
         return pd.DataFrame()
     
     # Group by artist and sum play time
-    top_artists = df_year_tracks.groupby('master_metadata_album_artist_name')['ms_played'].agg([
+    top_artists = df_tracks.groupby('master_metadata_album_artist_name')['ms_played'].agg([
         ('total_ms', 'sum'),
         ('play_count', 'count')
     ]).reset_index()
@@ -48,8 +52,9 @@ def get_top_artists(year: int, top_n: int = 10):
     top_n_artists = top_artists.sort_values('total_ms', ascending=False).head(top_n)
     
     # Display results
+    time_period = f"{year}" if year is not None else "ALL-TIME"
     print("="*70)
-    print(f"TOP {len(top_n_artists)} ARTISTS FROM {year}")
+    print(f"TOP {len(top_n_artists)} ARTISTS ({time_period})")
     print("="*70)
     print(f"{'Rank':<6} {'Artist':<40} {'Hours':<10} {'Minutes':<10} {'Plays':<8}")
     print("-"*70)
@@ -72,8 +77,9 @@ def get_top_artists(year: int, top_n: int = 10):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Get top artists for a given year')
-    parser.add_argument('year', type=int, help='Year to filter records (e.g., 2025)')
+    parser = argparse.ArgumentParser(description='Get top artists by year or all-time')
+    parser.add_argument('-y', '--year', type=int, default=None,
+                       help='Year to filter records (default: all-time)')
     parser.add_argument('-n', '--top-n', type=int, default=10, 
                        help='Number of top artists to return (default: 10)')
     

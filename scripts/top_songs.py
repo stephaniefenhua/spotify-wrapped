@@ -1,16 +1,16 @@
 """
-Query top songs by year.
+Query top songs by year or all-time.
 """
 import pandas as pd
 import argparse
 from pathlib import Path
 
 
-def get_top_songs(year: int, top_n: int = 10):
-    """Get top N songs by number of plays for a given year.
+def get_top_songs(year: int = None, top_n: int = 10):
+    """Get top N songs by number of plays for a given year or all-time.
     
     Args:
-        year: The year to filter records by
+        year: The year to filter records by (None for all-time)
         top_n: Number of top songs to return (default: 10)
     
     Returns:
@@ -20,25 +20,29 @@ def get_top_songs(year: int, top_n: int = 10):
     db_path = Path(__file__).parent.parent / 'spotify_streaming_history.parquet'
     df = pd.read_parquet(db_path)
     
-    # Filter for specified year
-    df_year = df[df['ts'].dt.year == year]
-    
-    if len(df_year) == 0:
-        print(f"No records found for year {year}")
-        return pd.DataFrame()
+    # Filter for specified year if provided
+    if year is not None:
+        df_filtered = df[df['ts'].dt.year == year]
+        
+        if len(df_filtered) == 0:
+            print(f"No records found for year {year}")
+            return pd.DataFrame()
+    else:
+        df_filtered = df
     
     # Filter for tracks only (exclude episodes and audiobooks)
-    df_year_tracks = df_year[
-        (df_year['master_metadata_track_name'].notna()) &
-        (df_year['spotify_track_uri'].notna())
+    df_tracks = df_filtered[
+        (df_filtered['master_metadata_track_name'].notna()) &
+        (df_filtered['spotify_track_uri'].notna())
     ]
     
-    if len(df_year_tracks) == 0:
-        print(f"No track records found for year {year}")
+    if len(df_tracks) == 0:
+        time_period = f"year {year}" if year is not None else "all-time"
+        print(f"No track records found for {time_period}")
         return pd.DataFrame()
     
     # Group by track name and artist, then sum play time
-    top_songs = df_year_tracks.groupby([
+    top_songs = df_tracks.groupby([
         'master_metadata_track_name',
         'master_metadata_album_artist_name'
     ])['ms_played'].agg([
@@ -54,8 +58,9 @@ def get_top_songs(year: int, top_n: int = 10):
     top_n_songs = top_songs.sort_values('play_count', ascending=False).head(top_n)
     
     # Display results
+    time_period = f"{year}" if year is not None else "ALL-TIME"
     print("="*80)
-    print(f"TOP {len(top_n_songs)} SONGS FROM {year} (by number of plays)")
+    print(f"TOP {len(top_n_songs)} SONGS ({time_period}) - by number of plays")
     print("="*80)
     print(f"{'Rank':<6} {'Song':<35} {'Artist':<30} {'Plays':<8} {'Minutes':<10}")
     print("-"*80)
@@ -80,8 +85,9 @@ def get_top_songs(year: int, top_n: int = 10):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Get top songs for a given year')
-    parser.add_argument('year', type=int, help='Year to filter records (e.g., 2025)')
+    parser = argparse.ArgumentParser(description='Get top songs by year or all-time')
+    parser.add_argument('-y', '--year', type=int, default=None,
+                       help='Year to filter records (default: all-time)')
     parser.add_argument('-n', '--top-n', type=int, default=10, 
                        help='Number of top songs to return (default: 10)')
     

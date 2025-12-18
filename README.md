@@ -7,8 +7,9 @@ A Python toolkit for analyzing your Spotify streaming history data. Parse your e
 - **Parse and deduplicate** Spotify streaming history JSON files
 - **Create multiple database formats** (Parquet, CSV, SQLite) for flexible querying
 - **Query scripts** for common analyses:
-  - Top artists by year
-  - Top songs by year
+  - Top artists by year or all-time
+  - Top songs by year or all-time
+  - Top podcasts by year or all-time
   - Individual song statistics
   - Artist statistics with per-song breakdown
 
@@ -49,8 +50,9 @@ spotify-analysis/
 ├── scripts/
 │   ├── parse_spotify_data.py     # Main parser script
 │   ├── spotify_data_model.py     # Data model definitions
-│   ├── top_artists_script.py     # Top artists by year
-│   ├── top_songs.py              # Top songs by year
+│   ├── top_artists_script.py     # Top artists by year or all-time
+│   ├── top_songs.py              # Top songs by year or all-time
+│   ├── top_podcasts.py           # Top podcasts by year or all-time
 │   ├── song_stats.py             # Individual song statistics
 │   ├── artist_stats.py           # Artist statistics with per-song breakdown
 │   └── query_examples.py         # Example queries
@@ -86,41 +88,76 @@ This script will:
 
 Once your database is created, you can use the various query scripts:
 
-#### Top Artists by Year
+#### Top Artists by Year or All-Time
 
-Get your top N artists for a specific year:
+Get your top N artists for a specific year or all-time (defaults to all-time if no year is specified):
 
 ```bash
-python3 scripts/top_artists_script.py <YEAR> [-n TOP_N]
+python3 scripts/top_artists_script.py [-y YEAR] [-n TOP_N]
 ```
 
 **Examples:**
 ```bash
-# Top 10 artists from 2025 (default)
-python3 scripts/top_artists_script.py 2025
+# Top 10 artists all-time (default)
+python3 scripts/top_artists_script.py
+
+# Top 5 artists all-time
+python3 scripts/top_artists_script.py -n 5
+
+# Top 10 artists from 2025
+python3 scripts/top_artists_script.py -y 2025
 
 # Top 5 artists from 2024
-python3 scripts/top_artists_script.py 2024 -n 5
+python3 scripts/top_artists_script.py -y 2024 -n 5
 
 # Top 20 artists from 2023
-python3 scripts/top_artists_script.py 2023 -n 20
+python3 scripts/top_artists_script.py -y 2023 -n 20
 ```
 
-#### Top Songs by Year
+#### Top Songs by Year or All-Time
 
-Get your top N songs (by number of plays) for a specific year:
+Get your top N songs (by number of plays) for a specific year or all-time (defaults to all-time if no year is specified):
 
 ```bash
-python3 scripts/top_songs.py <YEAR> [-n TOP_N]
+python3 scripts/top_songs.py [-y YEAR] [-n TOP_N]
 ```
 
 **Examples:**
 ```bash
+# Top 10 songs all-time (default)
+python3 scripts/top_songs.py
+
+# Top 5 songs all-time
+python3 scripts/top_songs.py -n 5
+
 # Top 10 songs from 2025
-python3 scripts/top_songs.py 2025
+python3 scripts/top_songs.py -y 2025
 
 # Top 5 songs from 2024
-python3 scripts/top_songs.py 2024 -n 5
+python3 scripts/top_songs.py -y 2024 -n 5
+```
+
+#### Top Podcasts by Year or All-Time
+
+Get your top N podcasts (by listening time) for a specific year or all-time (defaults to all-time if no year is specified):
+
+```bash
+python3 scripts/top_podcasts.py [-y YEAR] [-n TOP_N]
+```
+
+**Examples:**
+```bash
+# Top 10 podcasts all-time (default)
+python3 scripts/top_podcasts.py
+
+# Top 5 podcasts all-time
+python3 scripts/top_podcasts.py -n 5
+
+# Top 10 podcasts from 2025
+python3 scripts/top_podcasts.py -y 2025
+
+# Top 5 podcasts from 2024
+python3 scripts/top_podcasts.py -y 2024 -n 5
 ```
 
 #### Song Statistics
