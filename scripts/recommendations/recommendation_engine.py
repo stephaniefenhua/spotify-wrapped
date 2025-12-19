@@ -82,27 +82,16 @@ class RecommendationEngine:
         
         patterns = self.analyze_listening_patterns()
         
-        if use_custom_algorithm:
-            # Use custom algorithm based on listening patterns
-            # Note: Audio features endpoint is deprecated for apps created after Nov 27, 2024
-            # So we use seed tracks and genre-based recommendations instead
-            
-            # Get seed tracks from top played
-            seed_tracks = patterns['top_track_uris'][:5]  # Use top 5 as seeds
-            
-            # Get recommendations using seed tracks
-            # Spotify's algorithm will analyze these tracks and find similar ones
-            recommendations = self.api_client.get_recommendations(
-                seed_tracks=seed_tracks,
-                limit=num_recommendations * 2,  # Get more to filter
-            )
-        else:
-            # Use Spotify's algorithm directly
-            seed_tracks = patterns['top_track_uris'][:5]
-            recommendations = self.api_client.get_recommendations(
-                seed_tracks=seed_tracks,
-                limit=num_recommendations
-            )
+        # Get seed tracks from top played - use a larger pool for variety
+        # The API client will randomly sample from this pool each time
+        seed_tracks = patterns['top_track_uris'][:50]  # Use top 50 as seed pool
+        
+        # Get recommendations using seed tracks
+        # The API client randomly samples from the pool for variety
+        recommendations = self.api_client.get_recommendations(
+            seed_tracks=seed_tracks,
+            limit=num_recommendations * 2,  # Get more to filter
+        )
         
         # Filter out already played tracks if requested
         if exclude_played:

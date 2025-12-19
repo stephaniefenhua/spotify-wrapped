@@ -13,6 +13,7 @@ This client only uses endpoints that are still available:
 - search (search for tracks)
 """
 import os
+import random
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from typing import List, Dict, Optional
@@ -159,8 +160,13 @@ class SpotifyAPIClient:
                 if not isinstance(seed_tracks, list):
                     seed_tracks = [seed_tracks]
                 
-                print(f"Finding artists from {len(seed_tracks[:5])} seed tracks...")
-                for track_uri in seed_tracks[:5]:  # Limit to 5
+                # Randomly sample from a larger pool of seed tracks for variety
+                seed_pool = seed_tracks[:20]  # Use top 20 tracks as pool
+                random.shuffle(seed_pool)
+                selected_seeds = seed_pool[:8]  # Pick 8 random tracks from pool
+                
+                print(f"Finding artists from {len(selected_seeds)} randomly selected seed tracks...")
+                for track_uri in selected_seeds:
                     track_id = track_uri.split(':')[-1] if ':' in track_uri else track_uri
                     try:
                         track = self.sp.track(track_id)
@@ -192,23 +198,33 @@ class SpotifyAPIClient:
             
             print(f"Getting top tracks from these artists...")
             
-            # Get top tracks from artists in your listening history
-            recommendations = []
-            tracks_per_artist = max(2, limit // len(artist_ids)) if artist_ids else limit
+            # Shuffle artist order for variety
+            artist_list = list(artist_ids)
+            random.shuffle(artist_list)
             
-            for artist_id in list(artist_ids):
-                if len(recommendations) >= limit:
-                    break
+            # Get top tracks from artists in your listening history
+            all_tracks = []
+            
+            for artist_id in artist_list:
                 try:
                     top_tracks = self.get_artist_top_tracks(artist_id)
-                    for track in top_tracks[:tracks_per_artist]:
-                        if len(recommendations) >= limit:
-                            break
-                        # Add track if not already in recommendations
-                        if not any(r['id'] == track['id'] for r in recommendations):
-                            recommendations.append(track)
+                    # Shuffle top tracks to not always get the same ones
+                    shuffled_tracks = list(top_tracks)
+                    random.shuffle(shuffled_tracks)
+                    all_tracks.extend(shuffled_tracks)
                 except Exception as e:
                     print(f"Warning: Could not get top tracks for artist {artist_id}: {e}")
+            
+            # Remove duplicates while preserving randomized order
+            seen_ids = set()
+            unique_tracks = []
+            for track in all_tracks:
+                if track['id'] not in seen_ids:
+                    seen_ids.add(track['id'])
+                    unique_tracks.append(track)
+            
+            # Take requested number of recommendations
+            recommendations = unique_tracks[:limit]
             
             print(f"Generated {len(recommendations)} recommendations based on your favorite artists")
             return recommendations

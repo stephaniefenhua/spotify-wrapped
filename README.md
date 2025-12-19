@@ -6,6 +6,7 @@ A Python toolkit for analyzing your Spotify streaming history data. Parse your e
 
 - **Parse and deduplicate** Spotify streaming history JSON files
 - **Create multiple database formats** (Parquet, CSV, SQLite) for flexible querying
+- **Interactive dashboard** with visualizations and search
 - **Query scripts** for common analyses:
   - Top artists by year or all-time
   - Top songs by year or all-time
@@ -56,6 +57,10 @@ spotify-analysis/
 │   ├── song_stats.py             # Individual song statistics
 │   ├── artist_stats.py           # Artist statistics with per-song breakdown
 │   └── query_examples.py         # Example queries
+├── dashboard/
+│   ├── app.py                    # Plotly Dash dashboard
+│   └── assets/
+│       └── styles.css            # Custom dashboard styling
 ├── spotify_streaming_history.parquet  # Generated database (Parquet format)
 ├── spotify_streaming_history.csv      # Generated database (CSV format)
 ├── spotify_streaming_history.db       # Generated database (SQLite format)
@@ -84,9 +89,43 @@ This script will:
 
 **Note:** The script automatically looks for JSON files in the `data/` directory. If your files have different names or locations, you may need to update the file paths in `parse_spotify_data.py`.
 
-### Step 2: Query Your Data
+### Step 2: Use the Interactive Dashboard
 
-Once your database is created, you can use the various query scripts:
+The easiest way to explore your data is with the interactive dashboard:
+
+```bash
+python3 dashboard/app.py
+```
+
+Then open your browser to **http://localhost:8050**
+
+#### Dashboard Features
+
+| Tab | Description |
+|-----|-------------|
+| 🎤 **top artists** | View your most-listened artists with customizable year filter and count |
+| 🎵 **top songs** | See your top songs, sorted by plays or minutes |
+| 🔍 **song search** | Search for any song and see your play count and total time |
+| 👤 **artist stats** | Deep dive into any artist with per-song breakdown chart |
+| 🎙️ **podcasts** | View your top podcasts by listening time |
+| 📈 **trends** | See your listening patterns over time |
+
+#### Dashboard Controls
+
+- **Year dropdown**: Filter data by year or view all-time stats
+- **Top N input**: Enter any number (1-100) to customize how many results to show
+- **Sort options**: Toggle between sorting by plays or minutes (for songs)
+- **Search**: Type an artist or song name and click search
+
+#### Stopping the Dashboard
+
+Press `Ctrl+C` in the terminal to stop the dashboard server.
+
+---
+
+### Step 3: Query Your Data (Command Line)
+
+Alternatively, you can use the command-line query scripts:
 
 #### Top Artists by Year or All-Time
 
@@ -209,7 +248,7 @@ python3 scripts/artist_stats.py "Dabin" -e
 - Overall statistics (total songs, plays, listening time)
 - Per-song breakdown (ranked by number of plays)
 
-### Step 3: Custom Queries
+### Step 4: Custom Queries
 
 You can also write your own queries using pandas or SQL:
 
@@ -279,8 +318,13 @@ The database contains the following key fields:
 - Check that file names match the expected pattern
 - Verify the file paths in `parse_spotify_data.py` if using custom names
 
-### "No module named 'pandas'"
+### "No module named 'pandas'" or "No module named 'dash'"
 - Install dependencies: `pip install -r requirements.txt`
+
+### Dashboard won't start / "Address already in use"
+- Another process may be using port 8050
+- Kill existing processes: `lsof -ti:8050 | xargs kill -9`
+- Or run on a different port by editing `app.py`
 
 ### "No songs/artists found matching..."
 - Try using partial match (remove `-e` flag)

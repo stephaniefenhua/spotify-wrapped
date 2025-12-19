@@ -1,0 +1,86 @@
+/* Custom styles for Spotify Analytics Dashboard */
+
+/* Font family */
+* {
+    font-family: "Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* Tab container */
+.custom-tabs {
+    border-bottom: none !important;
+}
+
+.custom-tabs-container {
+    display: flex;
+    gap: 4px;
+    padding: 0 10px;
+}
+
+/* Individual tab styling - folder style */
+.custom-tab {
+    background-color: #e8f4fc !important;
+    border: none !important;
+    border-radius: 16px 16px 0 0 !important;
+    padding: 12px 24px !important;
+    margin-right: 4px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-transform: lowercase !important;
+    color: #7f8c8d !important;
+    transition: all 0.2s ease !important;
+    border-bottom: 3px solid transparent !important;
+}
+
+.custom-tab:hover {
+    background-color: #d4ebf7 !important;
+    color: #2c3e50 !important;
+}
+
+/* Selected tab */
+.custom-tab--selected {
+    background-color: #ffffff !important;
+    color: #89CFF0 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.05) !important;
+    border-bottom: 3px solid #89CFF0 !important;
+}
+
+/* Tab content area */
+.custom-tab-content {
+    background-color: #ffffff;
+    border-radius: 0 16px 16px 16px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Dropdown styling */
+.Select-control {
+    border-radius: 20px !important;
+    font-family: "Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+.Select-menu-outer {
+    border-radius: 12px !important;
+    font-family: "Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+/* Input styling */
+input[type="number"] {
+    font-family: "Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+input[type="text"] {
+    font-family: "Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+/* Button hover effect */
+button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+/* Smooth transitions */
+button, input, .Select-control {
+    transition: all 0.2s ease;
+}
+
