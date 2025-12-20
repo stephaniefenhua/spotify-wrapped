@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import urllib.parse
 from dash import Dash, html, dcc, callback, Output, Input, State
 from dash.exceptions import PreventUpdate
 
@@ -41,6 +42,31 @@ year_options = [{'label': 'all time', 'value': 'all'}] + [
 # Initialize the Dash app
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = "spotify analytics"
+
+# Set favicon - Dash will automatically look for favicon.ico or we can specify it
+# Using a data URI embedded directly in the HTML head
+favicon_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="75" font-size="70" text-anchor="middle" dominant-baseline="middle">🎵</text></svg>'
+favicon_data_uri = 'data:image/svg+xml;charset=utf-8,' + urllib.parse.quote(favicon_svg, safe='')
+
+app.index_string = f'''
+<!DOCTYPE html>
+<html>
+    <head>
+        {{%metas%}}
+        <title>{{%title%}}</title>
+        <link rel="icon" type="image/svg+xml" href="{favicon_data_uri}">
+        {{%css%}}
+    </head>
+    <body>
+        {{%app_entry%}}
+        <footer>
+            {{%config%}}
+            {{%scripts%}}
+            {{%renderer%}}
+        </footer>
+    </body>
+</html>
+'''
 
 # Color scheme - baby blue and white
 COLORS = {
@@ -454,7 +480,7 @@ def update_top_songs(year, top_n, sort_by):
 )
 def search_song(n_clicks, song_name):
     if not n_clicks or not song_name:
-        return html.P("enter a song name to search", style={'color': COLORS['text_secondary'], 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY})
+        return html.Div()  # Empty div instead of message
     
     # Search for songs
     mask = df['master_metadata_track_name'].str.lower().str.contains(song_name.lower(), na=False)
@@ -499,7 +525,7 @@ def search_song(n_clicks, song_name):
 )
 def search_artist(n_clicks, artist_name):
     if not n_clicks or not artist_name:
-        return html.P("enter an artist name to search", style={'color': COLORS['text_secondary'], 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY})
+        return html.Div()  # Empty div instead of message
     
     # Search for artist
     mask = df['master_metadata_album_artist_name'].str.lower().str.contains(artist_name.lower(), na=False)

@@ -84,3 +84,20 @@ button, input, .Select-control {
     transition: all 0.2s ease;
 }
 
+/* Plotly tooltip styling - rounded corners */
+.hovertext {
+    border-radius: 12px !important;
+}
+
+/* Target the tooltip background rectangle */
+.hoverlayer .hovertext rect {
+    rx: 12px !important;
+    ry: 12px !important;
+}
+
+/* Alternative selector for Plotly tooltips */
+.js-plotly-plot .hoverlayer .hovertext rect {
+    rx: 12px !important;
+    ry: 12px !important;
+}
+
