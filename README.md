@@ -1,5 +1,5 @@
 # Spotify Streaming History Analysis
-
+<img width="1314" height="814" alt="image" src="https://github.com/user-attachments/assets/79e67154-5075-461b-ae5d-057eb85faf22" />
 A Python toolkit for analyzing your Spotify streaming history data. Parse your exported JSON files, create queryable databases, and generate insights about your listening habits.
 
 ## Features
