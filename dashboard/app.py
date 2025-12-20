@@ -135,28 +135,38 @@ app.layout = html.Div([
             'textTransform': 'lowercase',
             'fontFamily': FONT_FAMILY,
         }),
-    ], style={'textAlign': 'center', 'padding': '30px 0'}),
+    ], style={'textAlign': 'center', 'padding': '0 0 20px 0'}),
     
     # Stats Overview
     html.Div([
         html.Div([
+            html.Label("year:", style={'color': COLORS['text'], 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
+            dcc.Dropdown(
+                id='stats-year-dropdown',
+                options=year_options,
+                value='all',
+                style={'width': '100px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
+                clearable=False,
+            ),
+        ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}),
+        html.Div([
             html.Div([
-                html.H3(f"{len(df):,}", style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
+                html.H3(id='total-plays-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
                 html.P("total plays", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
             ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
             
             html.Div([
-                html.H3(f"{df['minutes'].sum() / 60:,.1f}", style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
+                html.H3(id='hours-listened-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
                 html.P("hours listened", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
             ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
             
             html.Div([
-                html.H3(f"{df['master_metadata_track_name'].nunique():,}", style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
+                html.H3(id='unique-songs-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
                 html.P("unique songs", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
             ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
             
             html.Div([
-                html.H3(f"{df['master_metadata_album_artist_name'].nunique():,}", style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
+                html.H3(id='unique-artists-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
                 html.P("unique artists", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
             ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
         ], style={'display': 'flex', 'justifyContent': 'center', 'flexWrap': 'wrap', 'marginBottom': '20px'}),
@@ -352,6 +362,35 @@ app.layout = html.Div([
 
 
 # Callbacks
+@callback(
+    [Output('total-plays-stat', 'children'),
+     Output('hours-listened-stat', 'children'),
+     Output('unique-songs-stat', 'children'),
+     Output('unique-artists-stat', 'children')],
+    Input('stats-year-dropdown', 'value'),
+)
+def update_stats(year):
+    """Update the top 4 stat boxes based on selected year."""
+    filtered = df.copy()
+    if year != 'all':
+        filtered = filtered[filtered['year'] == year]
+    
+    # Total plays includes everything (songs, podcasts, etc.)
+    total_plays = f"{len(filtered):,}"
+    
+    # Hours listened includes everything
+    hours_listened = f"{filtered['minutes'].sum() / 60:,.1f}"
+    
+    # Unique songs - only count tracks (exclude podcasts/audiobooks)
+    tracks_only = filtered[filtered['master_metadata_track_name'].notna()]
+    unique_songs = f"{tracks_only['master_metadata_track_name'].nunique():,}"
+    
+    # Unique artists - only count tracks (exclude podcasts/audiobooks)
+    unique_artists = f"{tracks_only['master_metadata_album_artist_name'].nunique():,}"
+    
+    return total_plays, hours_listened, unique_songs, unique_artists
+
+
 @callback(
     Output('top-artists-chart', 'figure'),
     Input('artists-year-dropdown', 'value'),
