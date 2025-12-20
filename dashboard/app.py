@@ -14,8 +14,28 @@ import urllib.parse
 from dash import Dash, html, dcc, callback, Output, Input, State
 from dash.exceptions import PreventUpdate
 
-# Load data
+# ============================================================================
+# Configuration & Constants
+# ============================================================================
+
 DATA_PATH = Path(__file__).parent.parent / "spotify_streaming_history.parquet"
+
+COLORS = {
+    'background': '#f0f8ff',  # alice blue (light background)
+    'card': '#ffffff',  # white cards
+    'primary': '#89CFF0',  # baby blue
+    'text': '#2c3e50',  # dark blue-gray for text
+    'text_secondary': '#7f8c8d',  # gray for secondary text
+    'accent': '#5dade2',  # slightly darker blue for accents
+    'gradient_start': '#89CFF0',  # baby blue
+    'gradient_end': '#a8d8ea',  # lighter baby blue
+}
+
+FONT_FAMILY = '"Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif'
+
+# ============================================================================
+# Data Loading
+# ============================================================================
 
 def load_data():
     """Load the Spotify streaming history data."""
@@ -32,19 +52,167 @@ def load_data():
 
 # Initialize data
 df = load_data()
-
-# Get available years
 years = sorted(df['year'].unique())
 year_options = [{'label': 'all time', 'value': 'all'}] + [
     {'label': str(y), 'value': y} for y in years
 ]
 
-# Initialize the Dash app
+# ============================================================================
+# Helper Functions - Data Processing
+# ============================================================================
+
+def filter_by_year(data, year):
+    """Filter dataframe by year. Returns all data if year is 'all'."""
+    if year == 'all':
+        return data.copy()
+    return data[data['year'] == year].copy()
+
+def validate_top_n(top_n, max_value=100, default=10):
+    """Validate and clamp top_n value."""
+    if not top_n or top_n < 1:
+        return default
+    return min(top_n, max_value)
+
+# ============================================================================
+# Helper Functions - UI Components
+# ============================================================================
+
+def create_label(text, style_overrides=None):
+    """Create a styled label component."""
+    base_style = {
+        'color': COLORS['text'],
+        'textTransform': 'lowercase',
+        'fontFamily': FONT_FAMILY,
+    }
+    if style_overrides:
+        base_style.update(style_overrides)
+    return html.Label(text, style=base_style)
+
+def create_year_dropdown(dropdown_id, value='all'):
+    """Create a year dropdown component."""
+    return dcc.Dropdown(
+        id=dropdown_id,
+        options=year_options,
+        value=value,
+        style={'width': '100px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
+        clearable=False,
+    )
+
+def create_top_n_input(input_id, value=10, min_val=1, max_val=100):
+    """Create a top N number input component."""
+    return dcc.Input(
+        id=input_id,
+        type='number',
+        value=value,
+        min=min_val,
+        max=max_val,
+        style={
+            'width': '70px',
+            'padding': '8px 12px',
+            'borderRadius': '20px',
+            'border': f'1px solid {COLORS["text_secondary"]}',
+            'backgroundColor': COLORS['background'],
+            'color': COLORS['text'],
+            'textAlign': 'center',
+            'fontFamily': FONT_FAMILY,
+        },
+    )
+
+def create_search_input(input_id, placeholder):
+    """Create a search input component."""
+    return dcc.Input(
+        id=input_id,
+        type='text',
+        placeholder=placeholder,
+        style={
+            'width': '300px',
+            'padding': '10px',
+            'borderRadius': '20px',
+            'border': f'1px solid {COLORS["text_secondary"]}',
+            'backgroundColor': COLORS['background'],
+            'color': COLORS['text'],
+            'textTransform': 'lowercase',
+            'fontFamily': FONT_FAMILY,
+        },
+    )
+
+def create_stat_box(stat_id, label_text):
+    """Create a stat box component."""
+    card_style = {
+        'backgroundColor': COLORS['card'],
+        'borderRadius': '16px',
+        'padding': '20px',
+        'marginBottom': '20px',
+        'boxShadow': '0 2px 8px rgba(0,0,0,0.08)',
+        'fontFamily': FONT_FAMILY,
+    }
+    return html.Div([
+        html.H3(id=stat_id, style={
+            'color': COLORS['primary'],
+            'margin': '0',
+            'fontSize': '2rem',
+            'fontFamily': FONT_FAMILY,
+        }),
+        html.P(label_text, style={
+            'color': COLORS['text_secondary'],
+            'margin': '5px 0 0 0',
+            'textTransform': 'lowercase',
+            'fontFamily': FONT_FAMILY,
+        }),
+    ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'})
+
+# ============================================================================
+# Helper Functions - Charts
+# ============================================================================
+
+def apply_bar_chart_styling(fig, title, y_axis_title=''):
+    """Apply consistent styling to bar charts."""
+    fig.update_layout(
+        plot_bgcolor=COLORS['card'],
+        paper_bgcolor=COLORS['card'],
+        font=dict(color=COLORS['text'], family=FONT_FAMILY),
+        yaxis={
+            'categoryorder': 'total ascending',
+            'title': y_axis_title,
+            'ticksuffix': '   ',  # Add space after labels
+        },
+        showlegend=False,
+        coloraxis_showscale=False,
+        title=title,
+        title_font_size=14,
+        margin=dict(l=20, r=20, t=50, b=40),
+    )
+    fig.update_traces(
+        textposition='outside',
+        textfont_size=11,
+    )
+    return fig
+
+def create_horizontal_bar_chart(data, x_col, y_col, color_col, text_col, 
+                                 custom_data_cols, hover_template, title):
+    """Create a styled horizontal bar chart."""
+    fig = px.bar(
+        data,
+        x=x_col,
+        y=y_col,
+        orientation='h',
+        color=color_col,
+        color_continuous_scale=[COLORS['gradient_end'], COLORS['primary']],
+        text=text_col,
+        custom_data=custom_data_cols,
+    )
+    fig = apply_bar_chart_styling(fig, title)
+    fig.update_traces(hovertemplate=hover_template)
+    return fig
+
+# ============================================================================
+# App Initialization
+# ============================================================================
+
 app = Dash(__name__, suppress_callback_exceptions=True)
 app.title = "spotify analytics"
 
-# Set favicon - Dash will automatically look for favicon.ico or we can specify it
-# Using a data URI embedded directly in the HTML head
+# Set favicon
 favicon_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50" y="75" font-size="70" text-anchor="middle" dominant-baseline="middle">🎵</text></svg>'
 favicon_data_uri = 'data:image/svg+xml;charset=utf-8,' + urllib.parse.quote(favicon_svg, safe='')
 
@@ -68,22 +236,10 @@ app.index_string = f'''
 </html>
 '''
 
-# Color scheme - baby blue and white
-COLORS = {
-    'background': '#f0f8ff',  # alice blue (light background)
-    'card': '#ffffff',  # white cards
-    'primary': '#89CFF0',  # baby blue
-    'text': '#2c3e50',  # dark blue-gray for text
-    'text_secondary': '#7f8c8d',  # gray for secondary text
-    'accent': '#5dade2',  # slightly darker blue for accents
-    'gradient_start': '#89CFF0',  # baby blue
-    'gradient_end': '#a8d8ea',  # lighter baby blue
-}
+# ============================================================================
+# Layout
+# ============================================================================
 
-# Font family - Helvetica Rounded with fallbacks
-FONT_FAMILY = '"Helvetica Rounded", "Arial Rounded MT Bold", "Helvetica Neue", Helvetica, Arial, sans-serif'
-
-# Styles
 card_style = {
     'backgroundColor': COLORS['card'],
     'borderRadius': '16px',
@@ -106,18 +262,6 @@ button_style = {
     'fontFamily': FONT_FAMILY,
 }
 
-input_style = {
-    'width': '70px',
-    'padding': '8px 12px',
-    'borderRadius': '20px',
-    'border': f'1px solid {COLORS["text_secondary"]}',
-    'backgroundColor': COLORS['background'],
-    'color': COLORS['text'],
-    'textAlign': 'center',
-    'fontFamily': FONT_FAMILY,
-}
-
-# Layout
 app.layout = html.Div([
     # Header
     html.Div([
@@ -140,35 +284,14 @@ app.layout = html.Div([
     # Stats Overview
     html.Div([
         html.Div([
-            html.Label("year:", style={'color': COLORS['text'], 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-            dcc.Dropdown(
-                id='stats-year-dropdown',
-                options=year_options,
-                value='all',
-                style={'width': '100px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
-                clearable=False,
-            ),
+            create_label("year:", {'marginRight': '10px'}),
+            create_year_dropdown('stats-year-dropdown'),
         ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center', 'justifyContent': 'center'}),
         html.Div([
-            html.Div([
-                html.H3(id='total-plays-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
-                html.P("total plays", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-            ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
-            
-            html.Div([
-                html.H3(id='hours-listened-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
-                html.P("hours listened", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-            ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
-            
-            html.Div([
-                html.H3(id='unique-songs-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
-                html.P("unique songs", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-            ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
-            
-            html.Div([
-                html.H3(id='unique-artists-stat', style={'color': COLORS['primary'], 'margin': '0', 'fontSize': '2rem', 'fontFamily': FONT_FAMILY}),
-                html.P("unique artists", style={'color': COLORS['text_secondary'], 'margin': '5px 0 0 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-            ], style={**card_style, 'textAlign': 'center', 'flex': '1', 'margin': '0 10px'}),
+            create_stat_box('total-plays-stat', 'total plays'),
+            create_stat_box('hours-listened-stat', 'hours listened'),
+            create_stat_box('unique-songs-stat', 'unique songs'),
+            create_stat_box('unique-artists-stat', 'unique artists'),
         ], style={'display': 'flex', 'justifyContent': 'center', 'flexWrap': 'wrap', 'marginBottom': '20px'}),
     ]),
     
@@ -177,182 +300,121 @@ app.layout = html.Div([
         id='main-tabs',
         className='custom-tabs',
         children=[
-        # Top Artists Tab
-        dcc.Tab(
-            label='🎤 top artists',
-            className='custom-tab',
-            selected_className='custom-tab--selected',
-            children=[
-            html.Div([
-                html.Div([
-                    html.Label("year:", style={'color': COLORS['text'], 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Dropdown(
-                        id='artists-year-dropdown',
-                        options=year_options,
-                        value='all',
-                        style={'width': '100px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
-                        clearable=False,
-                    ),
-                    html.Label("top:", style={'color': COLORS['text'], 'marginLeft': '20px', 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Input(
-                        id='artists-top-n-input',
-                        type='number',
-                        value=10,
-                        min=1,
-                        max=100,
-                        style=input_style,
-                    ),
-                ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center'}),
-                dcc.Graph(id='top-artists-chart'),
-            ], style={**card_style, 'marginTop': '20px'}),
-        ]),
-        
-        # Top Songs Tab
-        dcc.Tab(
-            label='🎵 top songs',
-            className='custom-tab',
-            selected_className='custom-tab--selected',
-            children=[
-            html.Div([
-                html.Div([
-                    html.Label("year:", style={'color': COLORS['text'], 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Dropdown(
-                        id='songs-year-dropdown',
-                        options=year_options,
-                        value='all',
-                        style={'width': '100px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
-                        clearable=False,
-                    ),
-                    html.Label("top:", style={'color': COLORS['text'], 'marginLeft': '20px', 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Input(
-                        id='songs-top-n-input',
-                        type='number',
-                        value=10,
-                        min=1,
-                        max=100,
-                        style=input_style,
-                    ),
-                    html.Label("sort by:", style={'color': COLORS['text'], 'marginLeft': '20px', 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Dropdown(
-                        id='songs-sort-dropdown',
-                        options=[
-                            {'label': 'plays', 'value': 'plays'},
-                            {'label': 'minutes', 'value': 'minutes'},
-                        ],
-                        value='plays',
-                        style={'width': '120px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
-                        clearable=False,
-                    ),
-                ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center'}),
-                dcc.Graph(id='top-songs-chart'),
-            ], style={**card_style, 'marginTop': '20px'}),
-        ]),
-        
-        # Song Search Tab
-        dcc.Tab(
-            label='🔍 song search',
-            className='custom-tab',
-            selected_className='custom-tab--selected',
-            children=[
-            html.Div([
-                html.Div([
-                    dcc.Input(
-                        id='song-search-input',
-                        type='text',
-                        placeholder='enter song name...',
-                        style={
-                            'width': '300px',
-                            'padding': '10px',
-                            'borderRadius': '20px',
-                            'border': f'1px solid {COLORS["text_secondary"]}',
-                            'backgroundColor': COLORS['background'],
-                            'color': COLORS['text'],
-                            'textTransform': 'lowercase',
-                            'fontFamily': FONT_FAMILY,
-                        },
-                    ),
-                    html.Button('search', id='song-search-button', style=button_style),
-                ], style={'marginBottom': '20px'}),
-                html.Div(id='song-search-results'),
-            ], style={**card_style, 'marginTop': '20px'}),
-        ]),
-        
-        # Artist Stats Tab
-        dcc.Tab(
-            label='👤 artist stats',
-            className='custom-tab',
-            selected_className='custom-tab--selected',
-            children=[
-            html.Div([
-                html.Div([
-                    dcc.Input(
-                        id='artist-search-input',
-                        type='text',
-                        placeholder='enter artist name...',
-                        style={
-                            'width': '300px',
-                            'padding': '10px',
-                            'borderRadius': '20px',
-                            'border': f'1px solid {COLORS["text_secondary"]}',
-                            'backgroundColor': COLORS['background'],
-                            'color': COLORS['text'],
-                            'textTransform': 'lowercase',
-                            'fontFamily': FONT_FAMILY,
-                        },
-                    ),
-                    html.Button('search', id='artist-search-button', style=button_style),
-                ], style={'marginBottom': '20px'}),
-                html.Div(id='artist-search-results'),
-            ], style={**card_style, 'marginTop': '20px'}),
-        ]),
-        
-        # Podcasts Tab
-        dcc.Tab(
-            label='🎙️ podcasts',
-            className='custom-tab',
-            selected_className='custom-tab--selected',
-            children=[
-            html.Div([
-                html.Div([
-                    html.Label("year:", style={'color': COLORS['text'], 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Dropdown(
-                        id='podcasts-year-dropdown',
-                        options=year_options,
-                        value='all',
-                        style={'width': '100px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
-                        clearable=False,
-                    ),
-                    html.Label("top:", style={'color': COLORS['text'], 'marginLeft': '20px', 'marginRight': '10px', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-                    dcc.Input(
-                        id='podcasts-top-n-input',
-                        type='number',
-                        value=10,
-                        min=1,
-                        max=50,
-                        style=input_style,
-                    ),
-                ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center'}),
-                dcc.Graph(id='top-podcasts-chart'),
-            ], style={**card_style, 'marginTop': '20px'}),
-        ]),
-        
-        # Listening Trends Tab
-        dcc.Tab(
-            label='📈 trends',
-            className='custom-tab',
-            selected_className='custom-tab--selected',
-            children=[
-            html.Div([
-                dcc.Graph(id='listening-trends-chart'),
-            ], style={**card_style, 'marginTop': '20px'}),
-        ]),
-        
-    ], style={
-        'backgroundColor': COLORS['background'],
-        'fontFamily': FONT_FAMILY,
-        'padding': '0 10px',
-    }),
-    
+            # Top Artists Tab
+            dcc.Tab(
+                label='🎤 top artists',
+                className='custom-tab',
+                selected_className='custom-tab--selected',
+                children=[
+                    html.Div([
+                        html.Div([
+                            create_label("year:", {'marginRight': '10px'}),
+                            create_year_dropdown('artists-year-dropdown'),
+                            create_label("top:", {'marginLeft': '20px', 'marginRight': '10px'}),
+                            create_top_n_input('artists-top-n-input', max_val=100),
+                        ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center'}),
+                        dcc.Graph(id='top-artists-chart'),
+                    ], style={**card_style, 'marginTop': '20px'}),
+                ],
+            ),
+            
+            # Top Songs Tab
+            dcc.Tab(
+                label='🎵 top songs',
+                className='custom-tab',
+                selected_className='custom-tab--selected',
+                children=[
+                    html.Div([
+                        html.Div([
+                            create_label("year:", {'marginRight': '10px'}),
+                            create_year_dropdown('songs-year-dropdown'),
+                            create_label("top:", {'marginLeft': '20px', 'marginRight': '10px'}),
+                            create_top_n_input('songs-top-n-input', max_val=100),
+                            create_label("sort by:", {'marginLeft': '20px', 'marginRight': '10px'}),
+                            dcc.Dropdown(
+                                id='songs-sort-dropdown',
+                                options=[
+                                    {'label': 'plays', 'value': 'plays'},
+                                    {'label': 'minutes', 'value': 'minutes'},
+                                ],
+                                value='plays',
+                                style={'width': '120px', 'display': 'inline-block', 'fontFamily': FONT_FAMILY},
+                                clearable=False,
+                            ),
+                        ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center'}),
+                        dcc.Graph(id='top-songs-chart'),
+                    ], style={**card_style, 'marginTop': '20px'}),
+                ],
+            ),
+            
+            # Song Search Tab
+            dcc.Tab(
+                label='🔍 song search',
+                className='custom-tab',
+                selected_className='custom-tab--selected',
+                children=[
+                    html.Div([
+                        html.Div([
+                            create_search_input('song-search-input', 'enter song name...'),
+                            html.Button('search', id='song-search-button', style=button_style),
+                        ], style={'marginBottom': '20px'}),
+                        html.Div(id='song-search-results'),
+                    ], style={**card_style, 'marginTop': '20px'}),
+                ],
+            ),
+            
+            # Artist Stats Tab
+            dcc.Tab(
+                label='👤 artist stats',
+                className='custom-tab',
+                selected_className='custom-tab--selected',
+                children=[
+                    html.Div([
+                        html.Div([
+                            create_search_input('artist-search-input', 'enter artist name...'),
+                            html.Button('search', id='artist-search-button', style=button_style),
+                        ], style={'marginBottom': '20px'}),
+                        html.Div(id='artist-search-results'),
+                    ], style={**card_style, 'marginTop': '20px'}),
+                ],
+            ),
+            
+            # Podcasts Tab
+            dcc.Tab(
+                label='🎙️ podcasts',
+                className='custom-tab',
+                selected_className='custom-tab--selected',
+                children=[
+                    html.Div([
+                        html.Div([
+                            create_label("year:", {'marginRight': '10px'}),
+                            create_year_dropdown('podcasts-year-dropdown'),
+                            create_label("top:", {'marginLeft': '20px', 'marginRight': '10px'}),
+                            create_top_n_input('podcasts-top-n-input', max_val=50),
+                        ], style={'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center'}),
+                        dcc.Graph(id='top-podcasts-chart'),
+                    ], style={**card_style, 'marginTop': '20px'}),
+                ],
+            ),
+            
+            # Listening Trends Tab
+            dcc.Tab(
+                label='📈 trends',
+                className='custom-tab',
+                selected_className='custom-tab--selected',
+                children=[
+                    html.Div([
+                        dcc.Graph(id='listening-trends-chart'),
+                    ], style={**card_style, 'marginTop': '20px'}),
+                ],
+            ),
+        ],
+        style={
+            'backgroundColor': COLORS['background'],
+            'fontFamily': FONT_FAMILY,
+            'padding': '0 10px',
+        },
+    ),
 ], style={
     'backgroundColor': COLORS['background'],
     'minHeight': '100vh',
@@ -360,8 +422,10 @@ app.layout = html.Div([
     'fontFamily': FONT_FAMILY,
 })
 
-
+# ============================================================================
 # Callbacks
+# ============================================================================
+
 @callback(
     [Output('total-plays-stat', 'children'),
      Output('hours-listened-stat', 'children'),
@@ -371,21 +435,14 @@ app.layout = html.Div([
 )
 def update_stats(year):
     """Update the top 4 stat boxes based on selected year."""
-    filtered = df.copy()
-    if year != 'all':
-        filtered = filtered[filtered['year'] == year]
+    filtered = filter_by_year(df, year)
     
-    # Total plays includes everything (songs, podcasts, etc.)
     total_plays = f"{len(filtered):,}"
-    
-    # Hours listened includes everything
     hours_listened = f"{filtered['minutes'].sum() / 60:,.1f}"
     
-    # Unique songs - only count tracks (exclude podcasts/audiobooks)
+    # Unique songs and artists - only count tracks (exclude podcasts/audiobooks)
     tracks_only = filtered[filtered['master_metadata_track_name'].notna()]
     unique_songs = f"{tracks_only['master_metadata_track_name'].nunique():,}"
-    
-    # Unique artists - only count tracks (exclude podcasts/audiobooks)
     unique_artists = f"{tracks_only['master_metadata_album_artist_name'].nunique():,}"
     
     return total_plays, hours_listened, unique_songs, unique_artists
@@ -397,15 +454,9 @@ def update_stats(year):
     Input('artists-top-n-input', 'value'),
 )
 def update_top_artists(year, top_n):
-    if not top_n or top_n < 1:
-        top_n = 10
-    top_n = min(top_n, 100)
-    
-    filtered = df.copy()
-    if year != 'all':
-        filtered = filtered[filtered['year'] == year]
-    
-    # Filter to tracks only
+    """Update top artists chart."""
+    top_n = validate_top_n(top_n, max_value=100)
+    filtered = filter_by_year(df, year)
     filtered = filtered[filtered['master_metadata_album_artist_name'].notna()]
     
     top_artists = filtered.groupby('master_metadata_album_artist_name').agg({
@@ -416,37 +467,13 @@ def update_top_artists(year, top_n):
     top_artists['hours'] = (top_artists['total_ms'] / 3600000).round(1)
     top_artists = top_artists.nlargest(top_n, 'hours')
     
-    fig = px.bar(
-        top_artists,
-        x='hours',
-        y='artist',
-        orientation='h',
-        color='hours',
-        color_continuous_scale=[COLORS['gradient_end'], COLORS['primary']],
-        text=top_artists['hours'],
-        custom_data=['plays'],
+    title = f"top {top_n} artists by listening time" + (f" ({year})" if year != 'all' else " (all time)")
+    hover_template = '<b>%{y}</b><br>hours: %{x:.1f}<br>plays: %{customdata[0]}<extra></extra>'
+    
+    return create_horizontal_bar_chart(
+        top_artists, 'hours', 'artist', 'hours', top_artists['hours'],
+        ['plays'], hover_template, title
     )
-    fig.update_layout(
-        plot_bgcolor=COLORS['card'],
-        paper_bgcolor=COLORS['card'],
-        font=dict(color=COLORS['text'], family=FONT_FAMILY),
-        yaxis={
-            'categoryorder': 'total ascending',
-            'ticksuffix': '   ',  # Add space after artist name
-        },
-        xaxis={'title': 'hours'},
-        showlegend=False,
-        coloraxis_showscale=False,
-        title=f"top {top_n} artists by listening time" + (f" ({year})" if year != 'all' else " (all time)"),
-        title_font_size=14,
-        margin=dict(l=20, r=20, t=50, b=40),
-    )
-    fig.update_traces(
-        textposition='outside',
-        textfont_size=11,
-        hovertemplate='<b>%{y}</b><br>hours: %{x:.1f}<br>plays: %{customdata[0]}<extra></extra>',
-    )
-    return fig
 
 
 @callback(
@@ -456,15 +483,9 @@ def update_top_artists(year, top_n):
     Input('songs-sort-dropdown', 'value'),
 )
 def update_top_songs(year, top_n, sort_by):
-    if not top_n or top_n < 1:
-        top_n = 10
-    top_n = min(top_n, 100)
-    
-    filtered = df.copy()
-    if year != 'all':
-        filtered = filtered[filtered['year'] == year]
-    
-    # Filter to tracks only
+    """Update top songs chart."""
+    top_n = validate_top_n(top_n, max_value=100)
+    filtered = filter_by_year(df, year)
     filtered = filtered[filtered['master_metadata_track_name'].notna()]
     
     top_songs = filtered.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name']).agg({
@@ -479,37 +500,13 @@ def update_top_songs(year, top_n, sort_by):
     top_songs = top_songs.nlargest(top_n, sort_col)
     top_songs['label'] = top_songs['song'].str.lower() + ' - ' + top_songs['artist'].str.lower()
     
-    fig = px.bar(
-        top_songs,
-        x=sort_col,
-        y='label',
-        orientation='h',
-        color=sort_col,
-        color_continuous_scale=[COLORS['gradient_end'], COLORS['primary']],
-        text=top_songs[sort_col],
-        custom_data=['plays', 'minutes', 'hours'],
+    title = f"top {top_n} songs by {sort_col}" + (f" ({year})" if year != 'all' else " (all time)")
+    hover_template = '<b>%{y}</b><br>plays: %{customdata[0]}<br>minutes: %{customdata[1]:.1f}<br>hours: %{customdata[2]:.1f}<extra></extra>'
+    
+    return create_horizontal_bar_chart(
+        top_songs, sort_col, 'label', sort_col, top_songs[sort_col],
+        ['plays', 'minutes', 'hours'], hover_template, title
     )
-    fig.update_layout(
-        plot_bgcolor=COLORS['card'],
-        paper_bgcolor=COLORS['card'],
-        font=dict(color=COLORS['text'], family=FONT_FAMILY),
-        yaxis={
-            'categoryorder': 'total ascending',
-            'title': '',
-            'ticksuffix': '   ',  # Add space after song name
-        },
-        showlegend=False,
-        coloraxis_showscale=False,
-        title=f"top {top_n} songs by {sort_col}" + (f" ({year})" if year != 'all' else " (all time)"),
-        title_font_size=14,
-        margin=dict(l=20, r=20, t=50, b=40),
-    )
-    fig.update_traces(
-        textposition='outside',
-        textfont_size=11,
-        hovertemplate='<b>%{y}</b><br>plays: %{customdata[0]}<br>minutes: %{customdata[1]:.1f}<br>hours: %{customdata[2]:.1f}<extra></extra>',
-    )
-    return fig
 
 
 @callback(
@@ -518,17 +515,19 @@ def update_top_songs(year, top_n, sort_by):
     State('song-search-input', 'value'),
 )
 def search_song(n_clicks, song_name):
+    """Search for songs and display results."""
     if not n_clicks or not song_name:
-        return html.Div()  # Empty div instead of message
+        return html.Div()
     
-    # Search for songs
     mask = df['master_metadata_track_name'].str.lower().str.contains(song_name.lower(), na=False)
     matches = df[mask].copy()
     
     if len(matches) == 0:
-        return html.P(f"no songs found matching '{song_name}'", style={'color': COLORS['text_secondary'], 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY})
+        return html.P(
+            f"no songs found matching '{song_name}'",
+            style={'color': COLORS['text_secondary'], 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}
+        )
     
-    # Group by song and artist
     song_stats = matches.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name']).agg({
         'ms_played': 'sum',
         'ts': 'count'
@@ -540,8 +539,18 @@ def search_song(n_clicks, song_name):
     results = []
     for _, row in song_stats.iterrows():
         results.append(html.Div([
-            html.H4(row['song'].lower(), style={'color': COLORS['text'], 'margin': '0 0 5px 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
-            html.P(row['artist'].lower(), style={'color': COLORS['text_secondary'], 'margin': '0 0 10px 0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
+            html.H4(row['song'].lower(), style={
+                'color': COLORS['text'],
+                'margin': '0 0 5px 0',
+                'textTransform': 'lowercase',
+                'fontFamily': FONT_FAMILY,
+            }),
+            html.P(row['artist'].lower(), style={
+                'color': COLORS['text_secondary'],
+                'margin': '0 0 10px 0',
+                'textTransform': 'lowercase',
+                'fontFamily': FONT_FAMILY,
+            }),
             html.P([
                 html.Span(f"🎧 {int(row['plays'])} plays", style={'marginRight': '20px'}),
                 html.Span(f"⏱️ {row['minutes']:.1f} minutes"),
@@ -563,20 +572,22 @@ def search_song(n_clicks, song_name):
     State('artist-search-input', 'value'),
 )
 def search_artist(n_clicks, artist_name):
+    """Search for artist and display stats."""
     if not n_clicks or not artist_name:
-        return html.Div()  # Empty div instead of message
+        return html.Div()
     
-    # Search for artist
     mask = df['master_metadata_album_artist_name'].str.lower().str.contains(artist_name.lower(), na=False)
     matches = df[mask].copy()
     
     if len(matches) == 0:
-        return html.P(f"no artist found matching '{artist_name}'", style={'color': COLORS['text_secondary'], 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY})
+        return html.P(
+            f"no artist found matching '{artist_name}'",
+            style={'color': COLORS['text_secondary'], 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}
+        )
     
     # Overall stats
     total_plays = len(matches)
-    total_minutes = matches['ms_played'].sum() / 60000
-    total_hours = total_minutes / 60
+    total_hours = matches['ms_played'].sum() / 3600000
     unique_songs = matches['master_metadata_track_name'].nunique()
     
     # Per-song breakdown
@@ -606,7 +617,7 @@ def search_artist(n_clicks, artist_name):
         font=dict(color=COLORS['text'], family=FONT_FAMILY),
         yaxis={
             'categoryorder': 'total ascending',
-            'ticksuffix': '   ',  # Add space after song name
+            'ticksuffix': '   ',
         },
         showlegend=False,
         coloraxis_showscale=False,
@@ -620,16 +631,43 @@ def search_artist(n_clicks, artist_name):
     return html.Div([
         html.Div([
             html.Div([
-                html.H3(f"{total_plays:,}", style={'color': COLORS['primary'], 'margin': '0', 'fontFamily': FONT_FAMILY}),
-                html.P("total plays", style={'color': COLORS['text_secondary'], 'margin': '0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
+                html.H3(f"{total_plays:,}", style={
+                    'color': COLORS['primary'],
+                    'margin': '0',
+                    'fontFamily': FONT_FAMILY,
+                }),
+                html.P("total plays", style={
+                    'color': COLORS['text_secondary'],
+                    'margin': '0',
+                    'textTransform': 'lowercase',
+                    'fontFamily': FONT_FAMILY,
+                }),
             ], style={'textAlign': 'center', 'flex': '1'}),
             html.Div([
-                html.H3(f"{total_hours:.1f}", style={'color': COLORS['primary'], 'margin': '0', 'fontFamily': FONT_FAMILY}),
-                html.P("hours", style={'color': COLORS['text_secondary'], 'margin': '0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
+                html.H3(f"{total_hours:.1f}", style={
+                    'color': COLORS['primary'],
+                    'margin': '0',
+                    'fontFamily': FONT_FAMILY,
+                }),
+                html.P("hours", style={
+                    'color': COLORS['text_secondary'],
+                    'margin': '0',
+                    'textTransform': 'lowercase',
+                    'fontFamily': FONT_FAMILY,
+                }),
             ], style={'textAlign': 'center', 'flex': '1'}),
             html.Div([
-                html.H3(f"{unique_songs}", style={'color': COLORS['primary'], 'margin': '0', 'fontFamily': FONT_FAMILY}),
-                html.P("songs", style={'color': COLORS['text_secondary'], 'margin': '0', 'textTransform': 'lowercase', 'fontFamily': FONT_FAMILY}),
+                html.H3(f"{unique_songs}", style={
+                    'color': COLORS['primary'],
+                    'margin': '0',
+                    'fontFamily': FONT_FAMILY,
+                }),
+                html.P("songs", style={
+                    'color': COLORS['text_secondary'],
+                    'margin': '0',
+                    'textTransform': 'lowercase',
+                    'fontFamily': FONT_FAMILY,
+                }),
             ], style={'textAlign': 'center', 'flex': '1'}),
         ], style={'display': 'flex', 'marginBottom': '20px'}),
         dcc.Graph(figure=fig),
@@ -642,15 +680,9 @@ def search_artist(n_clicks, artist_name):
     Input('podcasts-top-n-input', 'value'),
 )
 def update_top_podcasts(year, top_n):
-    if not top_n or top_n < 1:
-        top_n = 10
-    top_n = min(top_n, 50)
-    
-    filtered = df.copy()
-    if year != 'all':
-        filtered = filtered[filtered['year'] == year]
-    
-    # Filter to podcasts only
+    """Update top podcasts chart."""
+    top_n = validate_top_n(top_n, max_value=50)
+    filtered = filter_by_year(df, year)
     filtered = filtered[filtered['episode_show_name'].notna()]
     
     if len(filtered) == 0:
@@ -672,44 +704,21 @@ def update_top_podcasts(year, top_n):
     top_podcasts = top_podcasts.nlargest(top_n, 'hours')
     top_podcasts['podcast'] = top_podcasts['podcast'].str.lower()
     
-    fig = px.bar(
-        top_podcasts,
-        x='hours',
-        y='podcast',
-        orientation='h',
-        color='hours',
-        color_continuous_scale=[COLORS['gradient_end'], COLORS['primary']],
-        text=top_podcasts['hours'],
-        custom_data=['episodes'],
+    title = f"top {top_n} podcasts by listening time" + (f" ({year})" if year != 'all' else " (all time)")
+    hover_template = '<b>%{y}</b><br>hours: %{x:.1f}<br>episodes: %{customdata[0]}<extra></extra>'
+    
+    return create_horizontal_bar_chart(
+        top_podcasts, 'hours', 'podcast', 'hours', top_podcasts['hours'],
+        ['episodes'], hover_template, title
     )
-    fig.update_layout(
-        plot_bgcolor=COLORS['card'],
-        paper_bgcolor=COLORS['card'],
-        font=dict(color=COLORS['text'], family=FONT_FAMILY),
-        yaxis={
-            'categoryorder': 'total ascending',
-            'ticksuffix': '   ',  # Add space after podcast name
-        },
-        showlegend=False,
-        coloraxis_showscale=False,
-        title=f"top {top_n} podcasts by listening time" + (f" ({year})" if year != 'all' else " (all time)"),
-        title_font_size=14,
-        margin=dict(l=20, r=20, t=50, b=40),
-    )
-    fig.update_traces(
-        textposition='outside',
-        textfont_size=11,
-        hovertemplate='<b>%{y}</b><br>hours: %{x:.1f}<br>episodes: %{customdata[0]}<extra></extra>',
-    )
-    return fig
 
 
 @callback(
     Output('listening-trends-chart', 'figure'),
-    Input('listening-trends-chart', 'id'),  # Trigger on load
+    Input('listening-trends-chart', 'id'),
 )
 def update_trends(_):
-    # Group by month
+    """Update listening trends chart."""
     df_trends = df.copy()
     df_trends['month'] = df_trends['ts'].dt.to_period('M').astype(str)
     
@@ -744,6 +753,10 @@ def update_trends(_):
     )
     return fig
 
+
+# ============================================================================
+# Main Execution
+# ============================================================================
 
 if __name__ == '__main__':
     print("\n" + "="*60)
